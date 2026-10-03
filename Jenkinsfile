@@ -17,7 +17,7 @@ pipeline {
         stage('SAST - SonarQube') {
             steps {
                 withSonarQubeEnv('SonarQube-DevSecOps') {
-                    sh './mvnw sonar:sonar -Dsonar.projectKey=tp-foyer-devsecops'
+                    sh './mvnw org.sonarsource.scanner.maven:sonar-maven-plugin:sonar -Dsonar.projectKey=tp-foyer-devsecops'
                 }
             }
         }
