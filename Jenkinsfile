@@ -21,11 +21,17 @@ pipeline {
                 }
             }
         }
+
+        stage('SAST - Semgrep') {
+            steps {
+                sh '/home/hafedhchaibi/.local/bin/semgrep scan --config=p/java --error'
+            }
+        }
     }
 
     post {
         success {
-            echo 'Build, unit tests and SonarQube analysis succeeded.'
+            echo 'Build, unit tests and SAST analyses succeeded.'
         }
 
         failure {
