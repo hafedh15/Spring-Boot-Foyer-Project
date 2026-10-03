@@ -27,11 +27,17 @@ pipeline {
                 sh '/home/hafedhchaibi/.local/bin/semgrep scan --config=p/java --error'
             }
         }
+
+        stage('Secrets Scan - Gitleaks') {
+            steps {
+                sh '/usr/local/bin/gitleaks git . --redact'
+            }
+        }
     }
 
     post {
         success {
-            echo 'Build, unit tests and SAST analyses succeeded.'
+            echo 'Build, unit tests, SAST and secret scanning succeeded.'
         }
 
         failure {
