@@ -36,12 +36,22 @@ pipeline {
 
         stage('SCA - Trivy') {
             steps {
+                // Full SCA report containing all severity levels
+                sh '/usr/bin/trivy fs --scanners vuln --format json --output trivy-sca-report.json .'
+
+                // Security Gate: HIGH and CRITICAL vulnerabilities block the pipeline
                 sh '/usr/bin/trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 .'
             }
         }
     }
 
     post {
+        always {
+            archiveArtifacts artifacts: 'trivy-sca-report.json',
+                             allowEmptyArchive: true,
+                             fingerprint: true
+        }
+
         success {
             echo 'Build, unit tests, SAST, secret scanning and SCA succeeded.'
         }
