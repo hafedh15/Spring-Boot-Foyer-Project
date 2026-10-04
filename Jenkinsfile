@@ -36,7 +36,7 @@ pipeline {
 
         stage('SCA - Trivy') {
             steps {
-                sh '/usr/bin/trivy fs --scanners vuln .'
+                sh '/usr/bin/trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 .'
             }
         }
     }
