@@ -33,11 +33,17 @@ pipeline {
                 sh '/usr/local/bin/gitleaks git . --redact'
             }
         }
+
+        stage('SCA - Trivy') {
+            steps {
+                sh '/usr/bin/trivy fs --scanners vuln .'
+            }
+        }
     }
 
     post {
         success {
-            echo 'Build, unit tests, SAST and secret scanning succeeded.'
+            echo 'Build, unit tests, SAST, secret scanning and SCA succeeded.'
         }
 
         failure {
