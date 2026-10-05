@@ -39,21 +39,38 @@ pipeline {
                 // Full SCA report containing all severity levels
                 sh '/usr/bin/trivy fs --scanners vuln --format json --output trivy-sca-report.json .'
 
-                // Security Gate: HIGH and CRITICAL vulnerabilities block the pipeline
+                // SCA Security Gate: HIGH and CRITICAL vulnerabilities block the pipeline
                 sh '/usr/bin/trivy fs --scanners vuln --severity HIGH,CRITICAL --exit-code 1 .'
+            }
+        }
+
+        stage('Docker Build') {
+            steps {
+                sh 'docker build -t tp-foyer:devsecops .'
+            }
+        }
+
+        stage('Docker Image Scan - Trivy') {
+            steps {
+                // Full Docker image report containing all severity levels
+                sh '/usr/bin/trivy image --scanners vuln --format json --output trivy-image-report.json tp-foyer:devsecops'
+
+                // Image Security Gate: HIGH and CRITICAL vulnerabilities block the pipeline
+                sh '/usr/bin/trivy image --scanners vuln --severity HIGH,CRITICAL --exit-code 1 tp-foyer:devsecops'
             }
         }
     }
 
     post {
         always {
-            archiveArtifacts artifacts: 'trivy-sca-report.json',
+            // Archive both security reports even if a Security Gate blocks the pipeline
+            archiveArtifacts artifacts: 'trivy-sca-report.json, trivy-image-report.json',
                              allowEmptyArchive: true,
                              fingerprint: true
         }
 
         success {
-            echo 'Build, unit tests, SAST, secret scanning and SCA succeeded.'
+            echo 'Build, tests, SAST, secret scanning, SCA, Docker build and image security scan succeeded.'
         }
 
         failure {
