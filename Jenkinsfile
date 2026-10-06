@@ -123,21 +123,38 @@ pipeline {
             }
         }
 
-        stage('DAST Security Gate') {
+        stage('Controlled DAST Gate Test') {
             steps {
                 sh '''
-                    echo "Evaluating DAST Security Gate..."
+                    echo "=== CONTROLLED DAST SECURITY GATE TEST ==="
+                    echo "The real ZAP report will remain unchanged."
+                    echo "Creating a copy containing one synthetic HIGH finding..."
 
-                    HIGH_COUNT=$(grep -c '"riskdesc"[[:space:]]*:[[:space:]]*"High (' zap-reports/zap-report.json || true)
+                    cp zap-reports/zap-report.json zap-reports/zap-report-gate-test.json
+
+                    sed -i '2i\\        "riskdesc": "High (High)",' zap-reports/zap-report-gate-test.json
+
+                    echo "Controlled test report created."
+                '''
+            }
+        }
+
+        stage('DAST Security Gate - Controlled Test') {
+            steps {
+                sh '''
+                    echo "=== CONTROLLED DAST SECURITY GATE VALIDATION ==="
+
+                    HIGH_COUNT=$(grep -c '"riskdesc"[[:space:]]*:[[:space:]]*"High (' zap-reports/zap-report-gate-test.json || true)
 
                     echo "HIGH DAST findings: $HIGH_COUNT"
 
                     if [ "$HIGH_COUNT" -gt 0 ]; then
                         echo "DAST Security Gate FAILED: HIGH vulnerability detected."
+                        echo "This HIGH finding is synthetic and used only to validate blocking behavior."
                         exit 1
                     fi
 
-                    echo "DAST Security Gate PASSED: no HIGH vulnerabilities detected."
+                    echo "DAST Security Gate PASSED."
                 '''
             }
         }
@@ -145,8 +162,8 @@ pipeline {
 
     post {
         always {
-            // Archive all generated security reports even if a gate fails
-            archiveArtifacts artifacts: 'trivy-sca-report.json, trivy-image-report.json, zap-reports/zap-report.html, zap-reports/zap-report.json',
+            // Archive the real reports and the controlled test report
+            archiveArtifacts artifacts: 'trivy-sca-report.json, trivy-image-report.json, zap-reports/zap-report.html, zap-reports/zap-report.json, zap-reports/zap-report-gate-test.json',
                              allowEmptyArchive: true,
                              fingerprint: true
         }
