@@ -52,7 +52,7 @@ pipeline {
 
         stage('Docker Image Scan - Trivy') {
             steps {
-                // Full Docker image report
+                // Full Docker image vulnerability report
                 sh '/usr/bin/trivy image --scanners vuln --format json --output trivy-image-report.json tp-foyer:devsecops'
 
                 // Image Security Gate: HIGH and CRITICAL block the pipeline
@@ -122,18 +122,37 @@ pipeline {
                 '''
             }
         }
+
+        stage('DAST Security Gate') {
+            steps {
+                sh '''
+                    echo "Evaluating DAST Security Gate..."
+
+                    HIGH_COUNT=$(grep -c '"riskdesc"[[:space:]]*:[[:space:]]*"High (' zap-reports/zap-report.json || true)
+
+                    echo "HIGH DAST findings: $HIGH_COUNT"
+
+                    if [ "$HIGH_COUNT" -gt 0 ]; then
+                        echo "DAST Security Gate FAILED: HIGH vulnerability detected."
+                        exit 1
+                    fi
+
+                    echo "DAST Security Gate PASSED: no HIGH vulnerabilities detected."
+                '''
+            }
+        }
     }
 
     post {
         always {
-            // Archive all generated security reports
+            // Archive all generated security reports even if a gate fails
             archiveArtifacts artifacts: 'trivy-sca-report.json, trivy-image-report.json, zap-reports/zap-report.html, zap-reports/zap-report.json',
                              allowEmptyArchive: true,
                              fingerprint: true
         }
 
         success {
-            echo 'Build, tests, security scans, Docker image, staging deployment and DAST succeeded.'
+            echo 'Build, tests, security scans, Security Gates, staging deployment and DAST succeeded.'
         }
 
         failure {
