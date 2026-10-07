@@ -141,22 +141,61 @@ pipeline {
                 '''
             }
         }
+
+        stage('Deploy - Production') {
+            steps {
+                sh '''
+                    echo "All Security Gates passed."
+                    echo "Deploying approved image to production..."
+
+                    docker rm -f tp-foyer-production || true
+
+                    docker run -d \
+                      --name tp-foyer-production \
+                      --network tpfoyer-net \
+                      -p 8083:8081 \
+                      -e SPRING_PROFILES_ACTIVE=prod \
+                      -e SPRING_DATASOURCE_URL='jdbc:mysql://tpfoyer-mysql-ci:3306/tpfoyerdb?createDatabaseIfNotExist=true' \
+                      -e SPRING_DATASOURCE_USERNAME=root \
+                      -e SPRING_DATASOURCE_PASSWORD='' \
+                      tp-foyer:devsecops
+                '''
+
+                sh '''
+                    echo "Waiting for production application to become ready..."
+
+                    for i in $(seq 1 30); do
+                        if curl -fsS http://localhost:8083/v3/api-docs > /dev/null; then
+                            echo "Production deployment is ready."
+                            exit 0
+                        fi
+
+                        echo "Waiting for production... attempt $i/30"
+                        sleep 2
+                    done
+
+                    echo "Production deployment failed to become ready."
+                    docker logs tp-foyer-production
+                    exit 1
+                '''
+            }
+        }
     }
 
     post {
         always {
-            // Archive all generated security reports even if a gate fails
+            // Archive all generated security reports even if a Security Gate fails
             archiveArtifacts artifacts: 'trivy-sca-report.json, trivy-image-report.json, zap-reports/zap-report.html, zap-reports/zap-report.json',
                              allowEmptyArchive: true,
                              fingerprint: true
         }
 
         success {
-            echo 'Build, tests, security scans, Security Gates, staging deployment and DAST succeeded.'
+            echo 'Secure CI/CD pipeline completed successfully and the approved application was deployed to production.'
         }
 
         failure {
-            echo 'Pipeline failed.'
+            echo 'Pipeline failed. Production deployment was not completed unless all previous Security Gates had passed.'
         }
     }
 }
