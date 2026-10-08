@@ -24,13 +24,28 @@ pipeline {
 
         stage('SAST - Semgrep') {
             steps {
-                sh '/home/hafedhchaibi/.local/bin/semgrep scan --config=p/java --error'
+                // Generate a machine-readable JSON SAST report.
+                // --error keeps Semgrep blocking when findings are detected.
+                sh '''
+                    /home/hafedhchaibi/.local/bin/semgrep scan \
+                      --config=p/java \
+                      --error \
+                      --json \
+                      --json-output=semgrep-report.json
+                '''
             }
         }
 
         stage('Secrets Scan - Gitleaks') {
             steps {
-                sh '/usr/local/bin/gitleaks git . --redact'
+                // Generate a JSON secret-scanning report while preserving
+                // Gitleaks' blocking behavior when a secret is detected.
+                sh '''
+                    /usr/local/bin/gitleaks git . \
+                      --redact \
+                      --report-format json \
+                      --report-path gitleaks-report.json
+                '''
             }
         }
 
@@ -184,8 +199,8 @@ pipeline {
 
     post {
         always {
-            // Archive all generated security reports even if a Security Gate fails
-            archiveArtifacts artifacts: 'trivy-sca-report.json, trivy-image-report.json, zap-reports/zap-report.html, zap-reports/zap-report.json',
+            // Archive all generated security reports even if a Security Gate fails.
+            archiveArtifacts artifacts: 'semgrep-report.json, gitleaks-report.json, trivy-sca-report.json, trivy-image-report.json, zap-reports/zap-report.html, zap-reports/zap-report.json',
                              allowEmptyArchive: true,
                              fingerprint: true
         }
