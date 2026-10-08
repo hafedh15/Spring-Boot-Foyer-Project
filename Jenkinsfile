@@ -192,10 +192,28 @@ pipeline {
 
         success {
             echo 'Secure CI/CD pipeline completed successfully and the approved application was deployed to production.'
+
+            withCredentials([string(credentialsId: 'discord-webhook', variable: 'DISCORD_WEBHOOK')]) {
+                discordSend(
+                    webhookURL: DISCORD_WEBHOOK,
+                    title: "DevSecOps Pipeline SUCCESS - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    description: "All security checks and Security Gates passed. The approved application was deployed successfully to production.",
+                    result: 'SUCCESS'
+                )
+            }
         }
 
         failure {
             echo 'Pipeline failed. Production deployment was not completed unless all previous Security Gates had passed.'
+
+            withCredentials([string(credentialsId: 'discord-webhook', variable: 'DISCORD_WEBHOOK')]) {
+                discordSend(
+                    webhookURL: DISCORD_WEBHOOK,
+                    title: "DevSecOps Pipeline FAILURE - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    description: "The pipeline failed or was blocked by a security control. Production deployment was not authorized.",
+                    result: 'FAILURE'
+                )
+            }
         }
     }
 }
